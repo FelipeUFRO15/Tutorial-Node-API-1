@@ -15,6 +15,8 @@ const userSchema = gql`
     ): Token!
 
     signIn(login: String!, password: String!): Token!
+
+    deleteUser(id: ID!): Boolean!
   }
 
   type Token {
@@ -25,6 +27,7 @@ const userSchema = gql`
     id: ID!
     username: String!
     email: String!
+    role: String
     messages: [Message!]
   }
 `;

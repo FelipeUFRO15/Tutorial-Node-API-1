@@ -11,6 +11,8 @@ import schema from './schema';
 import resolvers from './resolvers';
 import models, { sequelize } from './models';
 
+import http from 'http';
+
 const app = express();
 app.use(cors());
 
@@ -41,40 +43,53 @@ const server = new ApolloServer({
       message,
     };
   },
-  context: async ({ req }) => {
-    const me = await getMe(req);
+  context: async ({ req, connection }) => {
+    if (connection) {
+      return {
+        models,
+      };
+    }
 
-    return {
-      models,
-      me,
-      secret: process.env.SECRET,
-    };
+    if (req) {
+      const me = await getMe(req);
+
+      return {
+        models,
+        me,
+        secret: process.env.SECRET,
+      };
+    } 
   },
 });
 
 server.applyMiddleware({ app, path: '/graphql'});
 
+const httpServer = http.createServer(app);
+server.installSubscriptionHandlers(httpServer);
+
 const eraseDatabaseOnSync = true;
 
 sequelize.sync({ force: eraseDatabaseOnSync }).then(async () => {
   if (eraseDatabaseOnSync) {
-    createUsersWithMessages();
+    createUsersWithMessages(new Date());
   }
 
-  app.listen({ port: 8000}, () => {
+  httpServer.listen({ port: 8000}, () => {
     console.log('Apollo server on http://localhost:8000/graphql');
   });
 });
 
-const createUsersWithMessages = async () => {
+const createUsersWithMessages = async date => {
   await models.User.create(
     {
       username: 'Axadian',
       email: 'felipe@gmail.com',
       password: 'axadian',
+      role: 'ADMIN',
       messages: [
         {
           text: 'Primer commit de la aplicación',
+          createdAt: date.setSeconds(date.getSeconds() + 1),
         },
       ],
     },
@@ -91,9 +106,11 @@ const createUsersWithMessages = async () => {
       messages: [
         {
           text: 'Segundo commit de la aplicación',
+          createdAt: date.setSeconds(date.getSeconds() + 1),
         },
         {
           text: 'Arreglando cagada de commit anterior',
+          createdAt: date.setSeconds(date.getSeconds() + 1),
         },
       ],
     },
